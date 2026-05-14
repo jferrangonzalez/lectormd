@@ -13,6 +13,7 @@ export interface Documento {
   nombre: string
   ruta: string
   estado: Estado
+  orden: number
   created_at: string
   updated_at: string
   proyecto_slug: string

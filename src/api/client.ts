@@ -15,7 +15,6 @@ let _onAuthError: (() => void) | null = null
 
 export function setApiAuthErrorHandler(fn: () => void) { _onAuthError = fn }
 
-// Lee siempre de sessionStorage — evita bugs de timing con useEffect
 function authHeaders(): Record<string, string> {
   const token = sessionStorage.getItem(STORAGE_KEY)
   return token ? { Authorization: `Basic ${token}` } : {}
@@ -73,4 +72,22 @@ export const api = {
     post<{ deleted: number }>({ a: 'marcador_del', id }),
 
   scan: () => req<unknown>({ a: 'scan' }),
+
+  proyectoCrear: (slug: string, nombre: string) =>
+    post<{ id: number; slug: string; nombre: string }>({ a: 'proyecto_crear', slug, nombre }),
+
+  proyectoDel: (id: number) =>
+    post<{ deleted: number }>({ a: 'proyecto_del', id }),
+
+  proyectoRename: (id: number, nombre: string) =>
+    post<{ id: number; nombre: string }>({ a: 'proyecto_rename', id, nombre }),
+
+  documentoDel: (id: number) =>
+    post<{ deleted: number }>({ a: 'documento_del', id }),
+
+  moverDocumento: (id: number, proyecto_slug: string) =>
+    post<{ id: number; nueva_ruta?: string }>({ a: 'mover', id, proyecto_slug }),
+
+  ordenSwap: (id_a: number, id_b: number) =>
+    post<{ ok: boolean }>({ a: 'orden_swap', id_a, id_b }),
 }

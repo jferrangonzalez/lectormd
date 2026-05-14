@@ -16,21 +16,24 @@ class Api {
 
         try {
             $result = match($action) {
-                'scan'           => $this->scan(),
-                'proyectos'      => $this->getProyectos(),
-                'documentos'     => $this->getDocumentos($params),
-                'documento'      => $this->getDocumento($params),
-                'estado'         => $this->setEstado($params),
-                'buscar'         => $this->buscar($params),
-                'marcadores'     => $this->getMarcadores($params),
-                'marcador_add'   => $this->addMarcador($params),
-                'marcador_del'   => $this->delMarcador($params),
-                'marcadores_all' => $this->getAllMarcadores(),
-                'proyecto_rename'=> $this->renameProyecto($params),
-                'proyecto_del'   => $this->delProyecto($params),
-                'mover'          => $this->moverDocumento($params),
-                'upload'         => $this->upload($params),
-                default          => throw new InvalidArgumentException("Acción desconocida: $action")
+                'scan'            => $this->scan(),
+                'proyectos'       => $this->getProyectos(),
+                'documentos'      => $this->getDocumentos($params),
+                'documento'       => $this->getDocumento($params),
+                'estado'          => $this->setEstado($params),
+                'buscar'          => $this->buscar($params),
+                'marcadores'      => $this->getMarcadores($params),
+                'marcador_add'    => $this->addMarcador($params),
+                'marcador_del'    => $this->delMarcador($params),
+                'marcadores_all'  => $this->getAllMarcadores(),
+                'proyecto_rename' => $this->renameProyecto($params),
+                'proyecto_del'    => $this->delProyecto($params),
+                'proyecto_crear'  => $this->crearProyecto($params),
+                'mover'           => $this->moverDocumento($params),
+                'documento_del'   => $this->delDocumento($params),
+                'orden_swap'      => $this->swapOrden($params),
+                'upload'          => $this->upload($params),
+                default           => throw new InvalidArgumentException("Acción desconocida: $action")
             };
             echo json_encode(['ok' => true, 'data' => $result]);
         } catch (Throwable $e) {
@@ -62,7 +65,9 @@ class Api {
 
     private function getDocumentos(array $p): array {
         $where = '1=1';
-        if (!empty($p['proyecto'])) {
+        $porProyecto = !empty($p['proyecto']);
+
+        if ($porProyecto) {
             $s = SQLite3::escapeString($p['proyecto']);
             $where .= " AND p.slug = '$s'";
         }
@@ -70,13 +75,17 @@ class Api {
             $s = SQLite3::escapeString($p['estado']);
             $where .= " AND d.estado = '$s'";
         }
+
+        // Cuando se filtra por proyecto, respeta el orden manual; si no, por fecha
+        $order = $porProyecto ? 'd.orden ASC, d.id ASC' : 'd.updated_at DESC';
+
         $result = $this->db->query("
-            SELECT d.id, d.nombre, d.ruta, d.estado, d.created_at, d.updated_at,
+            SELECT d.id, d.nombre, d.ruta, d.estado, d.orden, d.created_at, d.updated_at,
                    p.slug as proyecto_slug, p.nombre as proyecto_nombre
             FROM documentos d
             JOIN proyectos p ON p.id = d.proyecto_id
             WHERE $where
-            ORDER BY d.updated_at DESC
+            ORDER BY $order
         ");
         $rows = [];
         while ($row = $result->fetchArray(SQLITE3_ASSOC)) $rows[] = $row;
@@ -187,19 +196,119 @@ class Api {
         return ['id' => $id, 'nombre' => $nombre];
     }
 
+    private function crearProyecto(array $p): array {
+        $slug   = trim($p['slug']   ?? '');
+        $nombre = trim($p['nombre'] ?? '');
+
+        if (!$slug) throw new InvalidArgumentException('slug requerido');
+
+        $slug = trim(preg_replace('/[^a-z0-9\-_]/', '-', strtolower($slug)), '-');
+        if (!$slug) throw new InvalidArgumentException('slug inválido');
+        if (!$nombre) $nombre = ucwords(str_replace(['-', '_'], ' ', $slug));
+
+        $dirPath = DOCS_PATH . '/' . $slug;
+        if (!is_dir($dirPath)) mkdir($dirPath, 0755, true);
+
+        $existing = $this->db->querySingle(
+            "SELECT id FROM proyectos WHERE slug = '" . SQLite3::escapeString($slug) . "'"
+        );
+        if ($existing) return ['id' => (int)$existing, 'slug' => $slug, 'nombre' => $nombre, 'exists' => true];
+
+        $stmt = $this->db->prepare('INSERT INTO proyectos (slug, nombre) VALUES (:s, :n)');
+        $stmt->bindValue(':s', $slug,   SQLITE3_TEXT);
+        $stmt->bindValue(':n', $nombre, SQLITE3_TEXT);
+        $stmt->execute();
+        return ['id' => (int)$this->db->lastInsertRowID(), 'slug' => $slug, 'nombre' => $nombre];
+    }
+
     private function delProyecto(array $p): array {
         $id = (int)($p['id'] ?? 0);
+
+        $slug = $this->db->querySingle("SELECT slug FROM proyectos WHERE id=$id");
+        if ($slug) {
+            // Limpiar FTS antes del cascade
+            $this->db->exec(
+                "DELETE FROM busqueda_fts WHERE documento_id IN (SELECT id FROM documentos WHERE proyecto_id=$id)"
+            );
+            // Borrar directorio del filesystem
+            $dirPath = DOCS_PATH . '/' . $slug;
+            if (is_dir($dirPath)) {
+                foreach (glob($dirPath . '/*.md') ?: [] as $file) unlink($file);
+                rmdir($dirPath);
+            }
+        }
+        // CASCADE borra documentos y marcadores
         $this->db->exec("DELETE FROM proyectos WHERE id=$id");
         return ['deleted' => $id];
     }
 
     private function moverDocumento(array $p): array {
-        $docId      = (int)($p['id'] ?? 0);
-        $proyectoId = (int)($p['proyecto_id'] ?? 0);
-        $this->db->exec(
-            "UPDATE documentos SET proyecto_id=$proyectoId, updated_at=CURRENT_TIMESTAMP WHERE id=$docId"
+        $docId     = (int)($p['id'] ?? 0);
+        $destSlug  = SQLite3::escapeString(trim($p['proyecto_slug'] ?? ''));
+
+        if (!$destSlug) throw new InvalidArgumentException('proyecto_slug requerido');
+
+        $doc = $this->db->querySingle(
+            "SELECT d.ruta, d.nombre, p.slug as proyecto_slug
+             FROM documentos d JOIN proyectos p ON p.id = d.proyecto_id
+             WHERE d.id = $docId",
+            true
         );
-        return ['id' => $docId, 'proyecto_id' => $proyectoId];
+        if (!$doc) throw new RuntimeException('Documento no encontrado');
+        if ($doc['proyecto_slug'] === $destSlug) return ['id' => $docId];
+
+        $destProyectoId = $this->db->querySingle(
+            "SELECT id FROM proyectos WHERE slug = '$destSlug'"
+        );
+        if (!$destProyectoId) throw new RuntimeException('Proyecto destino no encontrado');
+
+        $oldPath  = DOCS_PATH . '/' . $doc['ruta'];
+        $newRuta  = $destSlug . '/' . basename($doc['ruta']);
+        $newPath  = DOCS_PATH . '/' . $newRuta;
+
+        if (!rename($oldPath, $newPath)) throw new RuntimeException('Error al mover archivo');
+
+        $maxOrden = (int)$this->db->querySingle(
+            "SELECT COALESCE(MAX(orden), -1) FROM documentos WHERE proyecto_id = $destProyectoId"
+        );
+
+        $this->db->exec(
+            "UPDATE documentos SET proyecto_id=$destProyectoId, ruta='" . SQLite3::escapeString($newRuta) .
+            "', orden=" . ($maxOrden + 1) . ", updated_at=CURRENT_TIMESTAMP WHERE id=$docId"
+        );
+        $this->db->exec(
+            "UPDATE busqueda_fts SET ruta='" . SQLite3::escapeString($newRuta) . "' WHERE documento_id=$docId"
+        );
+
+        return ['id' => $docId, 'nueva_ruta' => $newRuta];
+    }
+
+    private function delDocumento(array $p): array {
+        $id = (int)($p['id'] ?? 0);
+
+        $doc = $this->db->querySingle("SELECT ruta FROM documentos WHERE id=$id", true);
+        if (!$doc) throw new RuntimeException('Documento no encontrado');
+
+        $filePath = DOCS_PATH . '/' . $doc['ruta'];
+        if (file_exists($filePath)) unlink($filePath);
+
+        $this->db->exec("DELETE FROM busqueda_fts WHERE documento_id=$id");
+        $this->db->exec("DELETE FROM documentos WHERE id=$id"); // CASCADE borra marcadores
+        return ['deleted' => $id];
+    }
+
+    private function swapOrden(array $p): array {
+        $idA = (int)($p['id_a'] ?? 0);
+        $idB = (int)($p['id_b'] ?? 0);
+        if (!$idA || !$idB) throw new InvalidArgumentException('id_a e id_b requeridos');
+
+        $ordenA = (int)$this->db->querySingle("SELECT orden FROM documentos WHERE id=$idA");
+        $ordenB = (int)$this->db->querySingle("SELECT orden FROM documentos WHERE id=$idB");
+
+        $this->db->exec("UPDATE documentos SET orden=$ordenB WHERE id=$idA");
+        $this->db->exec("UPDATE documentos SET orden=$ordenA WHERE id=$idB");
+
+        return ['ok' => true];
     }
 
     private function upload(array $p): array {
@@ -211,7 +320,6 @@ class Api {
             throw new InvalidArgumentException('Se requieren proyecto, nombre y contenido');
         }
 
-        // Si el contenido viaja en base64 (sin saltos de línea, solo chars base64), decodificar
         $trimmed = rtrim((string)$contenido, "=\r\n");
         if (!str_contains($contenido, "\n") && preg_match('/^[A-Za-z0-9+\/]+$/', $trimmed)) {
             $decoded = base64_decode($contenido, true);
@@ -221,7 +329,6 @@ class Api {
         }
 
         $proyecto = trim(preg_replace('/[^a-z0-9\-_]/', '-', strtolower($proyecto)), '-');
-        // Quitar extensión .md si viene en el nombre antes de sanitizar
         $nombre   = preg_replace('/\.md$/i', '', trim($nombre));
         $nombre   = trim(preg_replace('/[^a-z0-9\-_]/', '-', strtolower($nombre)), '-');
 
@@ -230,9 +337,7 @@ class Api {
         }
 
         $proyectoPath = DOCS_PATH . '/' . $proyecto;
-        if (!is_dir($proyectoPath)) {
-            mkdir($proyectoPath, 0755, true);
-        }
+        if (!is_dir($proyectoPath)) mkdir($proyectoPath, 0755, true);
 
         file_put_contents($proyectoPath . '/' . $nombre . '.md', $contenido);
         (new Scanner())->scan();

@@ -31,6 +31,7 @@ class Database {
                 nombre TEXT NOT NULL,
                 ruta TEXT NOT NULL UNIQUE,
                 estado TEXT NOT NULL DEFAULT "pendiente" CHECK(estado IN ("pendiente","leyendo","leido")),
+                orden INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -53,5 +54,12 @@ class Database {
                     tokenize="unicode61"
                 );
         ');
+
+        // Migraciones incrementales para tablas existentes
+        try {
+            $db->exec('ALTER TABLE documentos ADD COLUMN orden INTEGER NOT NULL DEFAULT 0');
+        } catch (\Exception $e) {
+            // columna ya existe, ignorar
+        }
     }
 }

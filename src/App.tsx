@@ -28,7 +28,6 @@ function AppInner() {
   const { token, logout } = useAuth()
   const { t } = useTheme()
 
-  // Registrar el handler de error 401 una sola vez
   useEffect(() => {
     setApiAuthErrorHandler(logout)
   }, [logout])
@@ -39,13 +38,19 @@ function AppInner() {
 }
 
 function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
-  const { proyectos, loading: loadingProyectos, recargar } = useProyectos()
+  const { proyectos, loading: loadingProyectos, recargar: recargarProyectos } = useProyectos()
   const [proyectoActivo, setProyectoActivo] = useState<string | null>(null)
   const [documentoActivo, setDocumentoActivo] = useState<DocumentoConContenido | null>(null)
   const [modal, setModal] = useState<Modal>(null)
   const [recarga, setRecarga] = useState(0)
+  const [recargaDocs, setRecargaDocs] = useState(0)
 
-  const { documentos, loading: loadingDocs } = useDocumentos(proyectoActivo ?? undefined)
+  const { documentos, loading: loadingDocs } = useDocumentos(proyectoActivo ?? undefined, undefined, recargaDocs)
+
+  const recargarTodo = () => {
+    setRecargaDocs(r => r + 1)
+    recargarProyectos()
+  }
 
   const abrirDocumento = async (doc: Documento) => {
     const data = await api.documento(doc.id)
@@ -54,12 +59,12 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
 
   const handleEstadoChange = () => {
     setRecarga(r => r + 1)
-    recargar()
+    recargarProyectos()
   }
 
   const escanear = async () => {
     await api.scan()
-    recargar()
+    recargarTodo()
   }
 
   const abrirDesdeModal = async (doc: Documento) => {
@@ -67,6 +72,21 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
       setProyectoActivo(doc.proyecto_slug)
     }
     await abrirDocumento(doc)
+  }
+
+  const handleProyectoCrear = async (slug: string, nombre: string) => {
+    await api.proyectoCrear(slug, nombre)
+    recargarProyectos()
+  }
+
+  const handleProyectoDel = async (id: number, nombre: string) => {
+    if (!confirm(`¿Eliminar la carpeta "${nombre}" y TODOS sus documentos? Esta acción no se puede deshacer.`)) return
+    await api.proyectoDel(id)
+    if (proyectos.find(p => p.id === id)?.slug === proyectoActivo) {
+      setProyectoActivo(null)
+      setDocumentoActivo(null)
+    }
+    recargarTodo()
   }
 
   return (
@@ -86,6 +106,8 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
         onScan={escanear}
         onBuscar={() => setModal('buscar')}
         onMarcadores={() => setModal('marcadores')}
+        onProyectoCrear={handleProyectoCrear}
+        onProyectoDel={handleProyectoDel}
       />
 
       {!documentoActivo ? (
@@ -94,9 +116,11 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
             <>
               <ListaDocumentos
                 documentos={documentos}
+                proyectos={proyectos}
                 loading={loadingDocs}
                 onSelect={abrirDocumento}
                 onEstadoChange={handleEstadoChange}
+                onListaChange={recargarTodo}
               />
               <div style={{
                 flex: 1,

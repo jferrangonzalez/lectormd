@@ -29,12 +29,16 @@ class Scanner {
                 );
                 if (!$existe) {
                     $nombre = basename($file, '.md');
-                    $stmt = $this->db->prepare(
-                        'INSERT INTO documentos (proyecto_id, nombre, ruta) VALUES (:pid, :nom, :ruta)'
+                    $maxOrden = (int)$this->db->querySingle(
+                        "SELECT COALESCE(MAX(orden), -1) FROM documentos WHERE proyecto_id = $proyectoId"
                     );
-                    $stmt->bindValue(':pid', $proyectoId, SQLITE3_INTEGER);
-                    $stmt->bindValue(':nom', $nombre, SQLITE3_TEXT);
-                    $stmt->bindValue(':ruta', $ruta, SQLITE3_TEXT);
+                    $stmt = $this->db->prepare(
+                        'INSERT INTO documentos (proyecto_id, nombre, ruta, orden) VALUES (:pid, :nom, :ruta, :orden)'
+                    );
+                    $stmt->bindValue(':pid',   $proyectoId,      SQLITE3_INTEGER);
+                    $stmt->bindValue(':nom',   $nombre,          SQLITE3_TEXT);
+                    $stmt->bindValue(':ruta',  $ruta,            SQLITE3_TEXT);
+                    $stmt->bindValue(':orden', $maxOrden + 1,    SQLITE3_INTEGER);
                     $stmt->execute();
                     $docId = $this->db->lastInsertRowID();
                     $this->indexarDocumento($docId, $nombre, $ruta, file_get_contents($file));
@@ -61,9 +65,9 @@ class Scanner {
             );
             $stmt->bindValue(':ruta', $ruta, SQLITE3_TEXT);
         }
-        $stmt->bindValue(':c', $contenido, SQLITE3_TEXT);
-        $stmt->bindValue(':n', $nombre, SQLITE3_TEXT);
-        $stmt->bindValue(':id', $docId, SQLITE3_INTEGER);
+        $stmt->bindValue(':c',   $contenido, SQLITE3_TEXT);
+        $stmt->bindValue(':n',   $nombre,    SQLITE3_TEXT);
+        $stmt->bindValue(':id',  $docId,     SQLITE3_INTEGER);
         $stmt->execute();
     }
 
@@ -75,7 +79,7 @@ class Scanner {
 
         $nombre = ucwords(str_replace(['-', '_'], ' ', $slug));
         $stmt = $this->db->prepare('INSERT INTO proyectos (slug, nombre) VALUES (:s, :n)');
-        $stmt->bindValue(':s', $slug, SQLITE3_TEXT);
+        $stmt->bindValue(':s', $slug,   SQLITE3_TEXT);
         $stmt->bindValue(':n', $nombre, SQLITE3_TEXT);
         $stmt->execute();
         return (int)$this->db->lastInsertRowID();
@@ -86,8 +90,8 @@ class Scanner {
         while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
             $fullPath = $this->docsPath . '/' . $row['ruta'];
             if (!file_exists($fullPath)) {
-                $this->db->exec("DELETE FROM documentos WHERE id = {$row['id']}");
                 $this->db->exec("DELETE FROM busqueda_fts WHERE documento_id = {$row['id']}");
+                $this->db->exec("DELETE FROM documentos WHERE id = {$row['id']}");
             }
         }
     }
