@@ -1,0 +1,6 @@
+# SPA routing: todo lo que no sea un archivo real va al index.html
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^ /index.html [L]
