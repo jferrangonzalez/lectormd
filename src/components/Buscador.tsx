@@ -39,6 +39,7 @@ export function Buscador({ onSelect, onClose }: Props) {
       nombre: r.nombre,
       ruta: r.ruta,
       estado: r.estado,
+      orden: 0,
       created_at: '',
       updated_at: '',
       proyecto_slug: r.proyecto_slug,

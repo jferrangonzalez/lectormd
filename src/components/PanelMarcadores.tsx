@@ -30,6 +30,7 @@ export function PanelMarcadores({ onSelect, onClose }: Props) {
       nombre: m.doc_nombre ?? '',
       ruta: m.doc_ruta ?? '',
       estado: 'leyendo',
+      orden: 0,
       created_at: '',
       updated_at: '',
       proyecto_slug: m.proyecto_slug ?? '',
