@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { Documento, ResultadoBusqueda } from '../types'
 import { useTheme } from '../context/ThemeContext'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 interface Props {
   onSelect: (doc: Documento) => void
@@ -10,6 +11,7 @@ interface Props {
 
 export function Buscador({ onSelect, onClose }: Props) {
   const { t } = useTheme()
+  const isMobile = useIsMobile()
   const [q, setQ] = useState('')
   const [resultados, setResultados] = useState<ResultadoBusqueda[]>([])
   const [buscando, setBuscando] = useState(false)
@@ -56,7 +58,7 @@ export function Buscador({ onSelect, onClose }: Props) {
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'center',
-      paddingTop: 80,
+      paddingTop: isMobile ? 20 : 80,
       zIndex: 100,
     }}
       onClick={onClose}

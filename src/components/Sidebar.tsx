@@ -6,6 +6,7 @@ interface Props {
   proyectos: Proyecto[]
   loading: boolean
   proyectoActivo: string | null
+  isMobile?: boolean
   onSelect: (slug: string) => void
   onScan: () => void
   onBuscar: () => void
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function Sidebar({
-  proyectos, loading, proyectoActivo,
+  proyectos, loading, proyectoActivo, isMobile,
   onSelect, onScan, onBuscar, onMarcadores,
   onProyectoCrear, onProyectoDel,
 }: Props) {
@@ -35,17 +36,19 @@ export function Sidebar({
 
   return (
     <aside style={{
-      width: 240,
-      minWidth: 240,
+      width: isMobile ? '100%' : 240,
+      minWidth: isMobile ? 0 : 240,
+      flex: isMobile ? 1 : undefined,
       background: t.bgSidebar,
       color: t.text,
       display: 'flex',
       flexDirection: 'column',
-      borderRight: `1px solid ${t.border}`,
+      borderRight: isMobile ? 'none' : `1px solid ${t.border}`,
+      overflow: 'hidden',
     }}>
-      <div style={{ padding: '16px 12px 8px', borderBottom: `1px solid ${t.border}` }}>
+      <div style={{ padding: isMobile ? '14px 16px 10px' : '16px 12px 8px', borderBottom: `1px solid ${t.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: t.textAccent, flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: isMobile ? 17 : 15, color: t.textAccent, flex: 1 }}>
             📚 Lecturas
           </div>
           <button
@@ -55,9 +58,9 @@ export function Sidebar({
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              fontSize: 16,
+              fontSize: isMobile ? 20 : 16,
               lineHeight: 1,
-              padding: 4,
+              padding: isMobile ? 8 : 4,
               borderRadius: 6,
               color: t.textMuted,
             }}
@@ -66,10 +69,10 @@ export function Sidebar({
           </button>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <ActionBtn onClick={onBuscar}  icon="🔍" label="Buscar" />
-          <ActionBtn onClick={onMarcadores} icon="🔖" label="Marcadores" />
-          <ActionBtn onClick={onScan}    icon="🔄" label="Escanear" />
-          <ActionBtn onClick={() => { setCreando(true); setNuevoNombre('') }} icon="➕" label="Carpeta" />
+          <ActionBtn onClick={onBuscar}    icon="🔍" label="Buscar"     isMobile={isMobile} />
+          <ActionBtn onClick={onMarcadores} icon="🔖" label="Marcadores" isMobile={isMobile} />
+          <ActionBtn onClick={onScan}      icon="🔄" label="Escanear"   isMobile={isMobile} />
+          <ActionBtn onClick={() => { setCreando(true); setNuevoNombre('') }} icon="➕" label="Carpeta" isMobile={isMobile} />
         </div>
 
         {creando && (
@@ -89,8 +92,8 @@ export function Sidebar({
                 border: `1px solid ${t.border}`,
                 borderRadius: 6,
                 color: t.text,
-                padding: '4px 8px',
-                fontSize: 12,
+                padding: isMobile ? '8px 10px' : '4px 8px',
+                fontSize: isMobile ? 14 : 12,
                 outline: 'none',
               }}
             />
@@ -101,8 +104,8 @@ export function Sidebar({
                 border: 'none',
                 borderRadius: 6,
                 color: t.mode === 'dark' ? '#1e1e2e' : '#fff',
-                padding: '4px 8px',
-                fontSize: 12,
+                padding: isMobile ? '8px 12px' : '4px 8px',
+                fontSize: isMobile ? 14 : 12,
                 cursor: 'pointer',
               }}
             >✓</button>
@@ -113,8 +116,8 @@ export function Sidebar({
                 border: 'none',
                 borderRadius: 6,
                 color: t.btnText,
-                padding: '4px 8px',
-                fontSize: 12,
+                padding: isMobile ? '8px 12px' : '4px 8px',
+                fontSize: isMobile ? 14 : 12,
                 cursor: 'pointer',
               }}
             >✕</button>
@@ -130,6 +133,7 @@ export function Sidebar({
             proyecto={p}
             activo={p.slug === proyectoActivo}
             hovered={hoveredSlug === p.slug}
+            isMobile={isMobile}
             onClick={() => onSelect(p.slug)}
             onMouseEnter={() => setHoveredSlug(p.slug)}
             onMouseLeave={() => setHoveredSlug(null)}
@@ -141,7 +145,7 @@ export function Sidebar({
   )
 }
 
-function ActionBtn({ onClick, icon, label }: { onClick: () => void; icon: string; label: string }) {
+function ActionBtn({ onClick, icon, label, isMobile }: { onClick: () => void; icon: string; label: string; isMobile?: boolean }) {
   const { t } = useTheme()
   return (
     <button
@@ -151,8 +155,8 @@ function ActionBtn({ onClick, icon, label }: { onClick: () => void; icon: string
         border: 'none',
         borderRadius: 6,
         color: t.btnText,
-        padding: '4px 8px',
-        fontSize: 11,
+        padding: isMobile ? '8px 12px' : '4px 8px',
+        fontSize: isMobile ? 13 : 11,
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
@@ -165,25 +169,27 @@ function ActionBtn({ onClick, icon, label }: { onClick: () => void; icon: string
 }
 
 function ProyectoItem({
-  proyecto, activo, hovered,
+  proyecto, activo, hovered, isMobile,
   onClick, onMouseEnter, onMouseLeave, onDel,
 }: {
   proyecto: Proyecto
   activo: boolean
   hovered: boolean
+  isMobile?: boolean
   onClick: () => void
   onMouseEnter: () => void
   onMouseLeave: () => void
   onDel: () => void
 }) {
   const { t } = useTheme()
+  const mostrarDel = isMobile || hovered
   return (
     <div
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={{
-        padding: '10px 16px',
+        padding: isMobile ? '14px 16px' : '10px 16px',
         cursor: 'pointer',
         background: activo ? t.bgCard : hovered ? t.bgCardHover + '55' : 'transparent',
         borderLeft: activo ? `3px solid ${t.accent}` : '3px solid transparent',
@@ -195,16 +201,16 @@ function ProyectoItem({
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: activo ? 600 : 400, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: isMobile ? 15 : 13, fontWeight: activo ? 600 : 400, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {proyecto.nombre || proyecto.slug}
         </div>
-        <div style={{ display: 'flex', gap: 8, fontSize: 11, opacity: 0.6 }}>
+        <div style={{ display: 'flex', gap: 8, fontSize: isMobile ? 12 : 11, opacity: 0.6 }}>
           {proyecto.leyendo > 0   && <span>📖 {proyecto.leyendo}</span>}
           {proyecto.pendientes > 0 && <span>📄 {proyecto.pendientes}</span>}
           {proyecto.leidos > 0    && <span>✅ {proyecto.leidos}</span>}
         </div>
       </div>
-      {hovered && (
+      {mostrarDel && (
         <button
           onClick={e => { e.stopPropagation(); onDel() }}
           title="Eliminar carpeta"
@@ -213,8 +219,8 @@ function ProyectoItem({
             border: 'none',
             cursor: 'pointer',
             color: '#f38ba8',
-            fontSize: 13,
-            padding: '2px 4px',
+            fontSize: isMobile ? 16 : 13,
+            padding: isMobile ? '6px 8px' : '2px 4px',
             borderRadius: 4,
             flexShrink: 0,
             lineHeight: 1,

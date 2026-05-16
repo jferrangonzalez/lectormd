@@ -17,7 +17,7 @@ Lector personal de archivos Markdown, deployado en **https://lectormd.ferranserv
 | BD SQLite | `/var/www/vhosts/ferranserver.es/data.ferranserver.es/httpdocs/lecturas_informes/data/lecturas.db` |
 | Auth usuario | `joseferran` / ver `api/index.php` → `AUTH_PASS` |
 | GitHub | **Sin repo** — deploy directo por scp |
-| Repo local git | `C:\www\lectormd` (inicializado, 3 commits) |
+| Repo local git | `C:\www\lectormd` (branch: master) |
 
 ### Deploy
 
@@ -28,34 +28,56 @@ npm run deploy
 
 ---
 
-## Arquitectura
+## Arquitectura del proyecto
 
 ```
 C:\www\lectormd\
 ├── api/
 │   ├── index.php      # Entrada: define constantes, auth, enruta a Api
 │   ├── Api.php        # Todas las acciones del backend
-│   ├── Database.php   # Singleton SQLite3 + migraciones
+│   ├── Database.php   # Singleton SQLite3 + migraciones automáticas
 │   └── Scanner.php    # Escanea DOCS_PATH y sincroniza BD
 └── src/
-    ├── App.tsx                    # Shell principal, estado global
-    ├── api/client.ts              # Wrapper fetch con auth
-    ├── types/index.ts             # Tipos TS (Documento, Proyecto, Marcador…)
+    ├── App.tsx                        # Shell principal: estado global + routing mobile/desktop
+    ├── api/client.ts                  # Wrapper fetch con auth Basic
+    ├── types/index.ts                 # Tipos TS (Documento, Proyecto, Marcador…)
     ├── context/
-    │   ├── AuthContext.tsx        # Login con Basic Auth en sessionStorage
-    │   └── ThemeContext.tsx       # Dark (Catppuccin Mocha) / Light (papel)
+    │   ├── AuthContext.tsx            # Login con Basic Auth en sessionStorage
+    │   └── ThemeContext.tsx           # Dark (Catppuccin Mocha) / Light (papel) + fontSize
     ├── hooks/
-    │   ├── useProyectos.ts        # Carga lista de proyectos
-    │   └── useDocumentos.ts       # Carga docs de un proyecto (acepta _recarga: number)
+    │   ├── useProyectos.ts            # Carga lista de proyectos
+    │   ├── useDocumentos.ts           # Carga docs de un proyecto (acepta _recarga: number)
+    │   └── useIsMobile.ts             # Breakpoint 640px, listener de resize
     └── components/
-        ├── Sidebar.tsx            # Panel izquierdo — proyectos + acciones
-        ├── ListaDocumentos.tsx    # Lista docs con acciones inline
-        ├── Reader.tsx             # Lector MD: react-markdown + GFM + syntax hl
-        ├── Buscador.tsx           # Modal búsqueda full-text (FTS5)
-        ├── PanelMarcadores.tsx    # Modal todos los marcadores
-        ├── EstadoBadge.tsx        # Badge pendiente/leyendo/leido
-        └── SyntaxHighlighter.tsx  # Wrapper react-syntax-highlighter
+        ├── Sidebar.tsx                # Panel izquierdo — proyectos + acciones; full-screen en mobile
+        ├── ListaDocumentos.tsx        # Lista docs con acciones inline; full-screen en mobile
+        ├── Reader.tsx                 # Lector MD: react-markdown + GFM + syntax hl
+        ├── Buscador.tsx               # Modal búsqueda full-text (FTS5)
+        ├── PanelMarcadores.tsx        # Modal todos los marcadores
+        ├── EstadoBadge.tsx            # Badge pendiente/leyendo/leido
+        ├── SyntaxHighlighter.tsx      # Wrapper lazy (React.lazy + Suspense)
+        └── SyntaxHighlighterImpl.tsx  # Implementación real (Prism) — chunk separado, lazy
 ```
+
+---
+
+## Funcionamiento general
+
+La app es un lector personal de Markdown organizado en **proyectos (carpetas)**. Cada proyecto corresponde a un directorio físico en el servidor. Los documentos `.md` dentro de cada directorio son las lecturas.
+
+### Flujo de uso
+
+1. **Login** — Basic Auth. El token se guarda en `sessionStorage`. Un 401 hace logout automático.
+2. **Sidebar** — lista de proyectos con contadores (📖 leyendo / 📄 pendiente / ✅ leído). Acciones: buscar, marcadores, escanear, crear carpeta.
+3. **Lista de documentos** — al seleccionar un proyecto, aparece la lista con filtros por estado y acciones por ítem (ciclar estado, reordenar ↑↓, mover a otra carpeta, eliminar).
+4. **Reader** — al abrir un documento, se marca automáticamente como "leyendo" si estaba "pendiente". Renderiza Markdown con GFM (tablas, listas de tareas, etc.). Permite seleccionar texto para guardar como marcador.
+5. **Búsqueda** — FTS5 full-text sobre contenido + nombre. Debounce 300ms. Snippets con `<mark>`.
+6. **Marcadores** — seleccionar texto en el Reader → botón flotante "Guardar". Panel global accesible desde Sidebar.
+
+### Navegación responsive
+
+- **Desktop (≥640px):** layout de 3 columnas: Sidebar | ListaDocumentos | Reader, todos visibles simultáneamente.
+- **Mobile (<640px):** navegación tipo stack — una vista a la vez. El estado `vistaMovil` en `App.tsx` controla qué se muestra: `'sidebar' → 'lista' → 'reader'`. Cada vista tiene botón de retroceso.
 
 ---
 
@@ -112,23 +134,41 @@ Todas las peticiones van a `/api/?a=<accion>` (GET) o POST con JSON `{a: "accion
 - **Tema:** dark Catppuccin Mocha / light papel; toggle en sidebar; persistido en localStorage
 - **Tamaño de fuente:** A+/A− en Reader, clamp 12-24px, persistido en localStorage
 - **Auth:** Basic Auth vía PHP sin WWW-Authenticate (no dispara popup nativo); token en sessionStorage; logout automático en 401
+- **Responsive / mobile:** navegación stack (sidebar → lista → reader), tap targets grandes, sin hover-dependencies, Buscador adaptado para teclado móvil
+
+---
+
+## Bundle JS
+
+| Chunk | Tamaño minificado | Gzip | Cuándo carga |
+|---|---|---|---|
+| `index.js` | 375 KB | 115 KB | Siempre (al abrir la app) |
+| `SyntaxHighlighterImpl.js` | 627 KB | 224 KB | Solo al renderizar un bloque de código |
+
+El chunk de Prism es lazy (`React.lazy` + `Suspense`). El fallback muestra el código en texto plano mientras carga.
 
 ---
 
 ## Pendientes / ideas conocidas
 
 - `proyecto_rename` solo cambia el nombre en DB, **no mueve el directorio ni actualiza las rutas** de los documentos. Si se necesita renombrar-slug, hay que hacerlo manualmente en el servidor.
-- El bundle JS pesa ~999 KB minificado (338 KB gzip) — `react-syntax-highlighter` + `prismjs` son los culpables. Se podría hacer code-splitting lazy si el tiempo de carga se vuelve un problema.
 - Sin GitHub repo: el historial vive solo en `C:\www\lectormd`. Crear repo en `jferrangonzalez` cuando convenga.
 - No hay paginación en `documentos` — irrelevante con el volumen actual pero a tener en cuenta.
-- El dropdown "Mover a carpeta" se cierra solo al hacer hover leave sobre la fila — mejorable con un click-outside handler si molesta.
+- El dropdown "Mover a carpeta" no tiene click-outside handler — se cierra volviendo a tocar el ícono 📂 o navegando.
+- El chunk de Prism (627 KB) podría reducirse más usando `react-syntax-highlighter/dist/esm/prism-light` con registro manual de lenguajes específicos.
+- Selección de texto para marcadores en mobile funciona vía `onTouchEnd` — en algunos navegadores iOS puede necesitar ajuste fino.
 
 ---
 
-## Última sesión (2026-05-14)
+## Historial de sesiones
 
+### Sesión 2026-05-14
 Se implementó desde cero (el repo no tenía git):
 1. `git init` + commit inicial del estado previo
 2. Backend: `orden` en BD, Scanner asigna orden al insertar, `documento_del`, `proyecto_crear`, fix `proyecto_del` (borra dir), fix `mover` (mueve archivo físico), `orden_swap`
 3. Frontend: `orden` en tipos, nuevas llamadas en client, `ListaDocumentos` con ↑↓/mover/eliminar, `Sidebar` con crear/eliminar carpeta, `App.tsx` wiring completo
-4. Deploy exitoso — build + scp al servidor
+4. Deploy exitoso
+
+### Sesión 2026-05-16
+1. **Responsive / mobile:** hook `useIsMobile`, navegación stack en `App.tsx` (`vistaMovil`), Sidebar y ListaDocumentos full-screen en mobile, Reader con padding reducido y panel lateral oculto, Buscador con paddingTop adaptado, tap targets agrandados en todos los componentes
+2. **Code-splitting:** `SyntaxHighlighter.tsx` convertido a wrapper lazy (`React.lazy` + `Suspense`), implementación movida a `SyntaxHighlighterImpl.tsx`. Bundle inicial: 1.000 KB → 375 KB (gzip: 338 KB → 115 KB)

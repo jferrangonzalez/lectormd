@@ -1,5 +1,7 @@
-import { Prism as Highlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { lazy, Suspense } from 'react'
+import { useTheme } from '../context/ThemeContext'
+
+const Impl = lazy(() => import('./SyntaxHighlighterImpl'))
 
 interface Props {
   language: string
@@ -7,14 +9,24 @@ interface Props {
 }
 
 export function SyntaxHighlighter({ language, children }: Props) {
+  const { t } = useTheme()
   return (
-    <Highlighter
-      style={oneDark}
-      language={language}
-      PreTag="div"
-      customStyle={{ borderRadius: 8, fontSize: 13, margin: '16px 0' }}
-    >
-      {children}
-    </Highlighter>
+    <Suspense fallback={
+      <div style={{
+        background: t.codeBg,
+        borderRadius: 8,
+        padding: '16px',
+        margin: '16px 0',
+        fontSize: 13,
+        fontFamily: 'ui-monospace, Consolas, monospace',
+        color: t.text,
+        whiteSpace: 'pre-wrap',
+        overflowX: 'auto',
+      }}>
+        {children}
+      </div>
+    }>
+      <Impl language={language}>{children}</Impl>
+    </Suspense>
   )
 }

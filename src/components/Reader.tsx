@@ -6,6 +6,7 @@ import type { DocumentoConContenido, Estado, Marcador } from '../types'
 import { api } from '../api/client'
 import { EstadoBadge } from './EstadoBadge'
 import { useTheme } from '../context/ThemeContext'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 interface Props {
   documento: DocumentoConContenido
@@ -15,6 +16,7 @@ interface Props {
 
 export function Reader({ documento, onClose, onEstadoChange }: Props) {
   const { t, fontSize, setFontSize } = useTheme()
+  const isMobile = useIsMobile()
   const [estado, setEstado] = useState<Estado>(documento.estado)
   const [marcadores, setMarcadores] = useState<Marcador[]>([])
   const [seleccion, setSeleccion] = useState<string | null>(null)
@@ -25,9 +27,10 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
     border: 'none',
     borderRadius: 6,
     color: t.btnText,
-    padding: '5px 10px',
-    fontSize: 12,
+    padding: isMobile ? '8px 14px' : '5px 10px',
+    fontSize: isMobile ? 13 : 12,
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
   }
 
   useEffect(() => {
@@ -78,30 +81,32 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
     }}>
       {/* Header */}
       <div style={{
-        padding: '10px 20px',
+        padding: isMobile ? '8px 12px' : '10px 20px',
         borderBottom: `1px solid ${t.border}`,
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        gap: isMobile ? 6 : 10,
         background: t.bgSidebar,
         flexShrink: 0,
+        flexWrap: 'wrap',
       }}>
         <button onClick={onClose} style={btn}>← Volver</button>
-        <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ flex: 1, minWidth: 120, fontSize: isMobile ? 13 : 14, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {documento.nombre}
         </div>
 
-        {/* Control de tamaño de fuente */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginRight: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button
             onClick={() => setFontSize(fontSize - 1)}
-            style={{ ...btn, padding: '4px 8px', fontWeight: 700, fontSize: 14 }}
+            style={{ ...btn, padding: isMobile ? '6px 10px' : '4px 8px', fontWeight: 700, fontSize: isMobile ? 15 : 14 }}
             title="Reducir texto"
           >A−</button>
-          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 28, textAlign: 'center' }}>{fontSize}px</span>
+          {!isMobile && (
+            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 28, textAlign: 'center' }}>{fontSize}px</span>
+          )}
           <button
             onClick={() => setFontSize(fontSize + 1)}
-            style={{ ...btn, padding: '4px 8px', fontWeight: 700, fontSize: 14 }}
+            style={{ ...btn, padding: isMobile ? '6px 10px' : '4px 8px', fontWeight: 700, fontSize: isMobile ? 15 : 14 }}
             title="Aumentar texto"
           >A+</button>
         </div>
@@ -114,10 +119,11 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
         <div
           ref={contentRef}
           onMouseUp={handleSeleccion}
+          onTouchEnd={handleSeleccion}
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '32px 48px',
+            padding: isMobile ? '16px' : '32px 48px',
             color: t.text,
             fontSize,
             lineHeight: 1.75,
@@ -137,8 +143,9 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
               gap: 8,
               fontSize: 13,
               zIndex: 10,
+              flexWrap: 'wrap',
             }}>
-              <span style={{ flex: 1, opacity: 0.8 }}>"{seleccion.slice(0, 60)}{seleccion.length > 60 ? '...' : ''}"</span>
+              <span style={{ flex: 1, minWidth: 100, opacity: 0.8 }}>"{seleccion.slice(0, 60)}{seleccion.length > 60 ? '...' : ''}"</span>
               <button onClick={guardarMarcador} style={{ ...btn, background: t.accent, color: t.mode === 'dark' ? '#1e1e2e' : '#fff' }}>
                 🔖 Guardar
               </button>
@@ -146,7 +153,7 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
             </div>
           )}
 
-          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ maxWidth: isMobile ? '100%' : 720, margin: '0 auto' }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -213,8 +220,8 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
           </div>
         </div>
 
-        {/* Panel marcadores */}
-        {marcadores.length > 0 && (
+        {/* Panel marcadores lateral — solo en desktop */}
+        {!isMobile && marcadores.length > 0 && (
           <div style={{
             width: 240,
             background: t.bgSidebar,

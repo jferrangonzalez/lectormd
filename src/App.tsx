@@ -7,12 +7,14 @@ import { PanelMarcadores } from './components/PanelMarcadores'
 import { LoginForm } from './components/LoginForm'
 import { useProyectos } from './hooks/useProyectos'
 import { useDocumentos } from './hooks/useDocumentos'
+import { useIsMobile } from './hooks/useIsMobile'
 import { api, setApiAuthErrorHandler } from './api/client'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider, useTheme } from './context/ThemeContext'
 import type { Documento, DocumentoConContenido } from './types'
 
 type Modal = 'buscar' | 'marcadores' | null
+type VistaMovil = 'sidebar' | 'lista' | 'reader'
 
 export default function App() {
   return (
@@ -44,6 +46,8 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
   const [modal, setModal] = useState<Modal>(null)
   const [recarga, setRecarga] = useState(0)
   const [recargaDocs, setRecargaDocs] = useState(0)
+  const [vistaMovil, setVistaMovil] = useState<VistaMovil>('sidebar')
+  const isMobile = useIsMobile()
 
   const { documentos, loading: loadingDocs } = useDocumentos(proyectoActivo ?? undefined, undefined, recargaDocs)
 
@@ -55,6 +59,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
   const abrirDocumento = async (doc: Documento) => {
     const data = await api.documento(doc.id)
     setDocumentoActivo(data)
+    if (isMobile) setVistaMovil('reader')
   }
 
   const handleEstadoChange = () => {
@@ -72,6 +77,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
       setProyectoActivo(doc.proyecto_slug)
     }
     await abrirDocumento(doc)
+    setModal(null)
   }
 
   const handleProyectoCrear = async (slug: string, nombre: string) => {
@@ -85,8 +91,78 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
     if (proyectos.find(p => p.id === id)?.slug === proyectoActivo) {
       setProyectoActivo(null)
       setDocumentoActivo(null)
+      if (isMobile) setVistaMovil('sidebar')
     }
     recargarTodo()
+  }
+
+  const sharedListaProps = {
+    documentos,
+    proyectos,
+    loading: loadingDocs,
+    onSelect: abrirDocumento,
+    onEstadoChange: handleEstadoChange,
+    onListaChange: recargarTodo,
+  }
+
+  const modals = (
+    <>
+      {modal === 'buscar' && (
+        <Buscador onSelect={abrirDesdeModal} onClose={() => setModal(null)} />
+      )}
+      {modal === 'marcadores' && (
+        <PanelMarcadores onSelect={abrirDesdeModal} onClose={() => setModal(null)} />
+      )}
+    </>
+  )
+
+  if (isMobile) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        overflow: 'hidden',
+        background: t.bg,
+        color: t.text,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}>
+        {vistaMovil === 'sidebar' && (
+          <Sidebar
+            proyectos={proyectos}
+            loading={loadingProyectos}
+            proyectoActivo={proyectoActivo}
+            isMobile
+            onSelect={slug => {
+              setProyectoActivo(slug)
+              setDocumentoActivo(null)
+              setVistaMovil('lista')
+            }}
+            onScan={escanear}
+            onBuscar={() => setModal('buscar')}
+            onMarcadores={() => setModal('marcadores')}
+            onProyectoCrear={handleProyectoCrear}
+            onProyectoDel={handleProyectoDel}
+          />
+        )}
+        {vistaMovil === 'lista' && (
+          <ListaDocumentos
+            {...sharedListaProps}
+            isMobile
+            onBack={() => setVistaMovil('sidebar')}
+          />
+        )}
+        {vistaMovil === 'reader' && documentoActivo && (
+          <Reader
+            key={`${documentoActivo.id}-${recarga}`}
+            documento={documentoActivo}
+            onClose={() => { setDocumentoActivo(null); setVistaMovil('lista') }}
+            onEstadoChange={handleEstadoChange}
+          />
+        )}
+        {modals}
+      </div>
+    )
   }
 
   return (
@@ -114,14 +190,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {proyectoActivo ? (
             <>
-              <ListaDocumentos
-                documentos={documentos}
-                proyectos={proyectos}
-                loading={loadingDocs}
-                onSelect={abrirDocumento}
-                onEstadoChange={handleEstadoChange}
-                onListaChange={recargarTodo}
-              />
+              <ListaDocumentos {...sharedListaProps} />
               <div style={{
                 flex: 1,
                 display: 'flex',
@@ -146,19 +215,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
         />
       )}
 
-      {modal === 'buscar' && (
-        <Buscador
-          onSelect={abrirDesdeModal}
-          onClose={() => setModal(null)}
-        />
-      )}
-
-      {modal === 'marcadores' && (
-        <PanelMarcadores
-          onSelect={abrirDesdeModal}
-          onClose={() => setModal(null)}
-        />
-      )}
+      {modals}
     </div>
   )
 }

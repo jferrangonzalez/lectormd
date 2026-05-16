@@ -15,12 +15,14 @@ interface Props {
   documentos: Documento[]
   proyectos: Proyecto[]
   loading: boolean
+  isMobile?: boolean
   onSelect: (doc: Documento) => void
   onEstadoChange: () => void
   onListaChange: () => void
+  onBack?: () => void
 }
 
-export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEstadoChange, onListaChange }: Props) {
+export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSelect, onEstadoChange, onListaChange, onBack }: Props) {
   const { t } = useTheme()
   const [filtro, setFiltro] = useState<Estado | ''>('')
   const [hoveredId, setHoveredId] = useState<number | null>(null)
@@ -66,8 +68,8 @@ export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEs
     border: 'none',
     borderRadius: 4,
     color: t.btnText,
-    padding: '2px 6px',
-    fontSize: 11,
+    padding: isMobile ? '6px 10px' : '2px 6px',
+    fontSize: isMobile ? 13 : 11,
     cursor: 'pointer',
     lineHeight: 1.4,
     flexShrink: 0,
@@ -80,30 +82,51 @@ export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEs
 
   return (
     <div style={{
-      width: 300,
-      minWidth: 300,
+      width: isMobile ? '100%' : 300,
+      minWidth: isMobile ? 0 : 300,
+      flex: isMobile ? 1 : undefined,
       background: t.bg,
-      borderRight: `1px solid ${t.border}`,
+      borderRight: isMobile ? 'none' : `1px solid ${t.border}`,
       display: 'flex',
       flexDirection: 'column',
     }}>
       <div style={{
-        padding: '12px 16px',
+        padding: isMobile ? '10px 16px' : '12px 16px',
         borderBottom: `1px solid ${t.border}`,
         display: 'flex',
         gap: 6,
         flexWrap: 'wrap',
+        alignItems: 'center',
         background: t.bgSidebar,
       }}>
+        {isMobile && onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: t.textAccent,
+              fontSize: 14,
+              cursor: 'pointer',
+              padding: '4px 0',
+              marginRight: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            ← Proyectos
+          </button>
+        )}
         {ESTADOS.map(e => (
           <button
             key={e.value}
             onClick={() => setFiltro(e.value)}
             style={{
-              padding: '3px 10px',
+              padding: isMobile ? '6px 12px' : '3px 10px',
               borderRadius: 12,
               border: 'none',
-              fontSize: 11,
+              fontSize: isMobile ? 13 : 11,
               cursor: 'pointer',
               background: filtro === e.value ? t.accent : t.btnBg,
               color: filtro === e.value ? (t.mode === 'dark' ? '#1e1e2e' : '#fff') : t.btnText,
@@ -123,34 +146,31 @@ export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEs
         {filtrados.map((doc, idx) => (
           <div
             key={doc.id}
-            onMouseEnter={() => setHoveredId(doc.id)}
-            onMouseLeave={() => { setHoveredId(null); if (moviendo === doc.id) setMoviendo(null) }}
+            onMouseEnter={() => !isMobile && setHoveredId(doc.id)}
+            onMouseLeave={() => !isMobile && setHoveredId(null)}
             style={{
-              padding: '10px 12px',
+              padding: isMobile ? '12px 14px' : '10px 12px',
               borderBottom: `1px solid ${t.border}`,
-              background: hoveredId === doc.id ? t.bgCard : 'transparent',
+              background: !isMobile && hoveredId === doc.id ? t.bgCard : 'transparent',
               transition: 'background 0.1s',
             }}
           >
-            {/* Fila principal: nombre + click para abrir */}
             <div
               onClick={() => onSelect(doc)}
-              style={{ cursor: 'pointer', marginBottom: 6 }}
+              style={{ cursor: 'pointer', marginBottom: isMobile ? 8 : 6 }}
             >
-              <div style={{ fontSize: 13, lineHeight: 1.4, color: t.text }}>
+              <div style={{ fontSize: isMobile ? 15 : 13, lineHeight: 1.4, color: t.text }}>
                 {doc.nombre}
               </div>
             </div>
 
-            {/* Fila de acciones */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 4, flexWrap: 'wrap' }}>
               <span onClick={e => { e.stopPropagation(); ciclarEstado(doc) }}>
                 <EstadoBadge estado={doc.estado} />
               </span>
 
               <div style={{ flex: 1 }} />
 
-              {/* Reordenar — solo sin filtro activo */}
               {puedeReordenar && (
                 <>
                   <button
@@ -168,7 +188,6 @@ export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEs
                 </>
               )}
 
-              {/* Mover a carpeta */}
               <div style={{ position: 'relative' }}>
                 <button
                   onClick={() => setMoviendo(moviendo === doc.id ? null : doc.id)}
@@ -199,8 +218,8 @@ export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEs
                           key={p.slug}
                           onClick={() => mover(doc, p.slug)}
                           style={{
-                            padding: '7px 10px',
-                            fontSize: 12,
+                            padding: isMobile ? '10px 12px' : '7px 10px',
+                            fontSize: isMobile ? 14 : 12,
                             color: t.text,
                             cursor: 'pointer',
                           }}
@@ -215,7 +234,6 @@ export function ListaDocumentos({ documentos, proyectos, loading, onSelect, onEs
                 )}
               </div>
 
-              {/* Eliminar */}
               <button
                 onClick={() => eliminar(doc)}
                 style={btnDanger}
