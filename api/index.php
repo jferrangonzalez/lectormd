@@ -1,14 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Rutas absolutas al almacén en data.ferranserver.es (mismo servidor)
-define('DOCS_PATH', '/var/www/vhosts/ferranserver.es/data.ferranserver.es/httpdocs/lecturas_informes/data/docs');
-define('DB_PATH',   '/var/www/vhosts/ferranserver.es/data.ferranserver.es/httpdocs/lecturas_informes/data/lecturas.db');
-
-// Credenciales (sin Apache Basic Auth para evitar popup nativo del browser)
-define('AUTH_USER', 'joseferran');
-define('AUTH_PASS', 'Jose..16');
-
+require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Scanner.php';
 require_once __DIR__ . '/Api.php';

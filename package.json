@@ -1,14 +1,15 @@
 {
-  "name": "lectormd-react",
-  "private": true,
-  "version": "0.0.0",
+  "name": "lectormd",
+  "version": "1.0.0",
+  "description": "Lector de Markdown personal y autoalojado. Proyectos, estados, marcadores y búsqueda de texto completo.",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && scp -r dist/. ferranserver:/var/www/vhosts/ferranserver.es/lectormd.ferranserver.es/ && scp api/index.php api/Api.php api/Scanner.php api/Database.php api/.htaccess ferranserver:/var/www/vhosts/ferranserver.es/lectormd.ferranserver.es/api/"
+    "php": "php -S localhost:8080 -t api/"
   },
   "dependencies": {
     "@types/react-syntax-highlighter": "^15.5.13",

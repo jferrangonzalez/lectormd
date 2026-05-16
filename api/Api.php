@@ -190,9 +190,11 @@ class Api {
 
     private function renameProyecto(array $p): array {
         $id     = (int)($p['id'] ?? 0);
-        $nombre = SQLite3::escapeString($p['nombre'] ?? '');
+        $nombre = trim($p['nombre'] ?? '');
         if (!$nombre) throw new InvalidArgumentException('Nombre vacío');
-        $this->db->exec("UPDATE proyectos SET nombre='$nombre' WHERE id=$id");
+
+        $nombreEscaped = SQLite3::escapeString($nombre);
+        $this->db->exec("UPDATE proyectos SET nombre='$nombreEscaped' WHERE id=$id");
         return ['id' => $id, 'nombre' => $nombre];
     }
 

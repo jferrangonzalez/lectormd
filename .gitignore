@@ -1,3 +1,15 @@
+# Backend — configuración local (nunca subir al repo)
+api/.env
+
+# Notas internas de sesión (contienen info del servidor de producción)
+handoff.md
+*.db
+*.db-wal
+*.db-shm
+
+# Directorio de documentos local (cada usuario tiene el suyo)
+data/
+
 # Logs
 logs
 *.log
