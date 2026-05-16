@@ -1,5 +1,5 @@
 # Backend — configuración local (nunca subir al repo)
-api/.env
+.env
 
 # Notas internas de sesión (contienen info del servidor de producción)
 handoff.md
@@ -22,6 +22,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-server
 *.local
 
 # Editor directories and files

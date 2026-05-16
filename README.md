@@ -20,16 +20,13 @@ Lector de Markdown personal y autoalojado. Organizá tus notas, libros y documen
 | Capa | Tecnología |
 |------|-----------|
 | Frontend | React 19 + TypeScript + Vite |
-| Backend | PHP 8.0+ (sin framework) |
+| Backend | Node.js 18+ + Hono + better-sqlite3 |
 | Base de datos | SQLite3 + FTS5 (nativo, sin servidor) |
-| Servidor web | Apache (con `mod_rewrite`) o Nginx |
 | Render MD | react-markdown + remark-gfm + Prism (lazy) |
 
 ## Requisitos
 
-- **PHP 8.0+** con extensiones `sqlite3`, `json`, `mbstring`
-- **Apache** con `mod_rewrite` habilitado (o Nginx con configuración equivalente)
-- **Node.js 18+** y npm (solo para compilar el frontend)
+- **Node.js 18+** y npm
 
 ## Instalación
 
@@ -49,10 +46,10 @@ npm install
 ### 3. Configurá el backend
 
 ```bash
-cp api/.env.example api/.env
+cp .env.example .env
 ```
 
-Editá `api/.env` con tus valores:
+Editá `.env` con tus valores:
 
 ```ini
 # Ruta absoluta al directorio de documentos
@@ -85,33 +82,13 @@ Los proyectos son subdirectorios. Los documentos son archivos `.md` dentro de ca
 npm run build
 ```
 
-### 6. Configurá el servidor web
+### 6. Arrancá el servidor
 
-**Apache** — apuntá el DocumentRoot al directorio del proyecto. El `api/.htaccess` ya está incluido.
-
-**Nginx** — ejemplo de configuración:
-
-```nginx
-server {
-    listen 80;
-    server_name lectormd.local;
-    root /ruta/al/proyecto;
-    index index.html;
-
-    location /api/ {
-        try_files $uri $uri/ /api/index.php?$query_string;
-        location ~ \.php$ {
-            include fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            fastcgi_pass unix:/run/php/php8.1-fpm.sock;
-        }
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
+```bash
+npm run server
 ```
+
+El servidor Node escucha en `http://localhost:8080`. Para producción, compilá con `tsc -p tsconfig.server.json` y usá `npm run server:prod`.
 
 ### 7. Sincronizá los documentos
 
@@ -119,13 +96,13 @@ Una vez que el servidor esté corriendo, accedé a la interfaz e iniciá sesión
 
 ## Desarrollo local
 
-Para desarrollar necesitás el backend PHP corriendo en local y el servidor de desarrollo de Vite.
+Para desarrollar necesitás el servidor Node corriendo en local y el servidor de desarrollo de Vite.
 
-**Terminal 1 — backend PHP:**
+**Terminal 1 — backend Node:**
 
 ```bash
-npm run php
-# equivale a: php -S localhost:8080 -t api/
+npm run server
+# equivale a: tsx server/index.ts — escucha en localhost:8080
 ```
 
 **Terminal 2 — frontend Vite:**
@@ -136,41 +113,40 @@ npm run dev
 
 El frontend en `:5173` proxea las llamadas a `/api/` hacia `localhost:8080`.
 
-Para cambiar el target del proxy (ej. si usás XAMPP o Laragon):
+Para cambiar el target del proxy:
 
 ```bash
 # .env.local
-VITE_API_TARGET=http://localhost/lectormd/api
+VITE_API_TARGET=http://localhost:8080
 ```
 
 ## Estructura del proyecto
 
 ```
 lectormd/
-├── api/
-│   ├── .env.example     # plantilla de configuración
-│   ├── .env             # tu configuración (NO versionar)
-│   ├── .htaccess        # rewrite rules para Apache
-│   ├── config.php       # lee .env y define constantes
-│   ├── index.php        # entry point: auth + routing
-│   ├── Api.php          # controlador de acciones
-│   ├── Database.php     # singleton SQLite + migraciones
-│   └── Scanner.php      # escanea docs/ y sincroniza DB
+├── server/
+│   ├── config.ts        # lee .env y expone getConfig()
+│   ├── db.ts            # singleton better-sqlite3 + migraciones
+│   ├── scanner.ts       # escanea DOCS_PATH y sincroniza DB
+│   ├── api.ts           # 16 acciones como funciones exportadas
+│   └── index.ts         # Hono app: CORS + auth + dispatcher
+├── api/                 # backend PHP original (referencia histórica)
 ├── src/
 │   ├── api/client.ts    # cliente HTTP tipado
 │   ├── components/      # componentes React
 │   ├── context/         # AuthContext, ThemeContext
 │   ├── hooks/           # useProyectos, useDocumentos, useIsMobile
 │   └── types/index.ts   # tipos compartidos
+├── .env.example         # plantilla de configuración
+├── .env                 # tu configuración (NO versionar)
 ├── data/                # tu directorio de documentos (NO versionar)
 ├── dist/                # build del frontend (generado)
 └── public/
-    └── .htaccess        # rewrite para SPA en Apache
 ```
 
 ## Seguridad
 
-- La autenticación es Basic Auth implementada en PHP. Las credenciales se guardan en `api/.env` que **nunca debe versionarse**.
+- La autenticación es Basic Auth implementada en Node/Hono. Las credenciales se guardan en `.env` en la raíz del proyecto, que **nunca debe versionarse**.
 - El token se guarda en `sessionStorage` del navegador (se borra al cerrar la pestaña).
 - lectormd está diseñado para uso personal o de equipo pequeño en un servidor bajo tu control. No es un servicio multi-tenant.
 

@@ -9,11 +9,16 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "php": "php -S localhost:8080 -t api/"
+    "server": "tsx server/index.ts",
+    "server:prod": "node dist-server/index.js"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.2",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2",
     "fuse.js": "^7.3.0",
+    "hono": "^4.12.19",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
@@ -22,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -30,6 +36,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "tsx": "^4.22.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"
