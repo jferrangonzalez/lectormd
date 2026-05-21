@@ -39,6 +39,7 @@ export function Sidebar({
       width: isMobile ? '100%' : 240,
       minWidth: isMobile ? 0 : 240,
       flex: isMobile ? 1 : undefined,
+      minHeight: 0,
       background: t.bgSidebar,
       color: t.text,
       display: 'flex',
@@ -125,7 +126,7 @@ export function Sidebar({
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', padding: '8px 0' }}>
         {loading && <div style={{ padding: '12px 16px', opacity: 0.5, fontSize: 13 }}>Cargando...</div>}
         {proyectos.map(p => (
           <ProyectoItem

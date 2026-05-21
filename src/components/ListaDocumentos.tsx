@@ -85,10 +85,12 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
       width: isMobile ? '100%' : 300,
       minWidth: isMobile ? 0 : 300,
       flex: isMobile ? 1 : undefined,
+      minHeight: 0,
       background: t.bg,
       borderRight: isMobile ? 'none' : `1px solid ${t.border}`,
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
     }}>
       <div style={{
         padding: isMobile ? '10px 16px' : '12px 16px',
@@ -138,7 +140,7 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
         ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {loading && <div style={{ padding: 16, color: t.textMuted, fontSize: 13 }}>Cargando...</div>}
         {!loading && filtrados.length === 0 && (
           <div style={{ padding: 16, color: t.textMuted, fontSize: 13 }}>Sin documentos</div>
