@@ -36,3 +36,72 @@ mark {
 ::-webkit-scrollbar-thumb:hover {
   background: #585b70;
 }
+
+/* ───────────────── Dialog & Popover ───────────────── */
+
+dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  max-width: none;
+  max-height: none;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+[popover] {
+  inset: unset;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  margin: 0;
+  overflow: visible;
+}
+
+/* Anchor positioning para dropdown "Mover a carpeta". */
+.mover-popover {
+  position-area: block-end span-inline-start;
+  position-try-fallbacks: flip-block, flip-inline;
+  margin-top: 4px;
+}
+
+/* ─────────────── View Transitions (mobile stack nav) ─────────────── */
+
+::view-transition-group(root) {
+  animation-duration: 0.28s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes md-slide-to-left  { to   { transform: translateX(-30%); opacity: 0.4; } }
+@keyframes md-slide-from-right { from { transform: translateX(100%); } }
+@keyframes md-slide-to-right { to   { transform: translateX(100%); } }
+@keyframes md-slide-from-left { from { transform: translateX(-30%); opacity: 0.4; } }
+
+html:active-view-transition-type(forward)::view-transition-old(root)  { animation-name: md-slide-to-left;  }
+html:active-view-transition-type(forward)::view-transition-new(root)  { animation-name: md-slide-from-right; }
+html:active-view-transition-type(backward)::view-transition-old(root) { animation-name: md-slide-to-right; }
+html:active-view-transition-type(backward)::view-transition-new(root) { animation-name: md-slide-from-left; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root) { animation: none !important; }
+}
+
+/* ─────────────── content-visibility para markdown ─────────────── */
+
+/* Aplica a hijos directos del markdown renderizado: el navegador saltea
+   render de los que están fuera de viewport, mejorando INP en docs largos.
+   contain-intrinsic-size evita layout shift mientras el browser estima tamaño. */
+.md-content > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+/* Excepción: h1 inicial debe estar siempre renderizado (above the fold). */
+.md-content > h1:first-child {
+  content-visibility: visible;
+}

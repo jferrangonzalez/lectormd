@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Documento, Marcador } from '../types'
 import { useTheme } from '../context/ThemeContext'
+import { useDialog } from '../hooks/useDialog'
 
 interface Props {
   onSelect: (doc: Documento) => void
@@ -12,6 +13,7 @@ export function PanelMarcadores({ onSelect, onClose }: Props) {
   const { t } = useTheme()
   const [marcadores, setMarcadores] = useState<Marcador[]>([])
   const [loading, setLoading] = useState(true)
+  const dialogRef = useDialog(onClose)
 
   useEffect(() => {
     api.todosLosMarcadores()
@@ -40,17 +42,11 @@ export function PanelMarcadores({ onSelect, onClose }: Props) {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.6)',
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'center',
-      paddingTop: 80,
-      zIndex: 100,
-    }}
-      onClick={onClose}
+    <dialog
+      ref={dialogRef}
+      closedby="any"
+      aria-label="Todos los marcadores"
+      style={{ marginTop: 80, marginInline: 'auto' }}
     >
       <div
         style={{
@@ -59,20 +55,20 @@ export function PanelMarcadores({ onSelect, onClose }: Props) {
           borderRadius: 12,
           width: 600,
           maxWidth: '90vw',
-          maxHeight: '70vh',
+          maxHeight: '70dvh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+          color: t.text,
         }}
-        onClick={e => e.stopPropagation()}
       >
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: t.textAccent, fontWeight: 700, fontSize: 14 }}>🔖 Todos los marcadores</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 16 }}>✕</button>
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {loading && <div style={{ padding: 24, color: t.textMuted, fontSize: 13, textAlign: 'center' }}>Cargando...</div>}
           {!loading && marcadores.length === 0 && (
             <div style={{ padding: 24, color: t.textMuted, fontSize: 13, textAlign: 'center' }}>Sin marcadores guardados</div>
@@ -115,6 +111,6 @@ export function PanelMarcadores({ onSelect, onClose }: Props) {
           ))}
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

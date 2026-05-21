@@ -26,7 +26,6 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
   const { t } = useTheme()
   const [filtro, setFiltro] = useState<Estado | ''>('')
   const [hoveredId, setHoveredId] = useState<number | null>(null)
-  const [moviendo, setMoviendo] = useState<number | null>(null)
 
   const filtrados = filtro ? documentos.filter(d => d.estado === filtro) : documentos
   const puedeReordenar = filtro === ''
@@ -47,7 +46,8 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
   const mover = async (doc: Documento, proyectoSlug: string) => {
     if (proyectoSlug === doc.proyecto_slug) return
     await api.moverDocumento(doc.id, proyectoSlug)
-    setMoviendo(null)
+    // Cierra el popover programáticamente tras mover.
+    document.getElementById(`mover-${doc.id}`)?.hidePopover?.()
     onListaChange()
   }
 
@@ -188,50 +188,47 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
                 </>
               )}
 
-              <div style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setMoviendo(moviendo === doc.id ? null : doc.id)}
-                  style={btnSm}
-                  title="Mover a carpeta"
-                >📂</button>
-                {moviendo === doc.id && (
-                  <div style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: '100%',
-                    marginTop: 4,
-                    background: t.bgModal,
-                    border: `1px solid ${t.border}`,
-                    borderRadius: 8,
-                    zIndex: 50,
-                    minWidth: 160,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{ padding: '6px 10px', fontSize: 10, color: t.textMuted, fontWeight: 700, textTransform: 'uppercase', borderBottom: `1px solid ${t.border}` }}>
-                      Mover a…
+              <button
+                {...({ popovertarget: `mover-${doc.id}` } as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+                style={btnSm}
+                title="Mover a carpeta"
+              >📂</button>
+              <div
+                id={`mover-${doc.id}`}
+                {...({ popover: 'auto' } as React.HTMLAttributes<HTMLDivElement>)}
+                className="mover-popover"
+                style={{
+                  background: t.bgModal,
+                  border: `1px solid ${t.border}`,
+                  borderRadius: 8,
+                  minWidth: 180,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                  overflow: 'hidden',
+                  color: t.text,
+                }}
+              >
+                <div style={{ padding: '6px 10px', fontSize: 10, color: t.textMuted, fontWeight: 700, textTransform: 'uppercase', borderBottom: `1px solid ${t.border}` }}>
+                  Mover a…
+                </div>
+                {proyectos
+                  .filter(p => p.slug !== doc.proyecto_slug)
+                  .map(p => (
+                    <div
+                      key={p.slug}
+                      onClick={() => mover(doc, p.slug)}
+                      style={{
+                        padding: isMobile ? '10px 12px' : '7px 10px',
+                        fontSize: isMobile ? 14 : 12,
+                        color: t.text,
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = t.bgCard)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {p.nombre}
                     </div>
-                    {proyectos
-                      .filter(p => p.slug !== doc.proyecto_slug)
-                      .map(p => (
-                        <div
-                          key={p.slug}
-                          onClick={() => mover(doc, p.slug)}
-                          style={{
-                            padding: isMobile ? '10px 12px' : '7px 10px',
-                            fontSize: isMobile ? 14 : 12,
-                            color: t.text,
-                            cursor: 'pointer',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = t.bgCard)}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                        >
-                          {p.nombre}
-                        </div>
-                      ))
-                    }
-                  </div>
-                )}
+                  ))
+                }
               </div>
 
               <button

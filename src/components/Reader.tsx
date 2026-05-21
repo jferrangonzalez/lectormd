@@ -161,7 +161,7 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
             </div>
           )}
 
-          <div style={{ maxWidth: isMobile ? '100%' : 720, margin: '0 auto' }}>
+          <div className="md-content" style={{ maxWidth: isMobile ? '100%' : 720, margin: '0 auto' }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{

@@ -16,6 +16,18 @@ import type { Documento, DocumentoConContenido } from './types'
 type Modal = 'buscar' | 'marcadores' | null
 type VistaMovil = 'sidebar' | 'lista' | 'reader'
 
+/** Envuelve un cambio de vista en View Transitions con dirección — degrada a actualización directa
+ *  en navegadores sin soporte (Firefox antes de v144, Safari antes de 18). */
+function navMobile(dir: 'forward' | 'backward', upd: () => void) {
+  const sv = (document as unknown as { startViewTransition?: (arg: unknown) => unknown }).startViewTransition
+  if (!sv) return upd()
+  try {
+    sv.call(document, { update: upd, types: [dir] })
+  } catch {
+    sv.call(document, upd)
+  }
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -58,8 +70,14 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
 
   const abrirDocumento = async (doc: Documento) => {
     const data = await api.documento(doc.id)
-    setDocumentoActivo(data)
-    if (isMobile) setVistaMovil('reader')
+    if (isMobile) {
+      navMobile('forward', () => {
+        setDocumentoActivo(data)
+        setVistaMovil('reader')
+      })
+    } else {
+      setDocumentoActivo(data)
+    }
   }
 
   const handleEstadoChange = () => {
@@ -89,9 +107,13 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
     if (!confirm(`¿Eliminar la carpeta "${nombre}" y TODOS sus documentos? Esta acción no se puede deshacer.`)) return
     await api.proyectoDel(id)
     if (proyectos.find(p => p.id === id)?.slug === proyectoActivo) {
-      setProyectoActivo(null)
-      setDocumentoActivo(null)
-      if (isMobile) setVistaMovil('sidebar')
+      const limpiar = () => {
+        setProyectoActivo(null)
+        setDocumentoActivo(null)
+        if (isMobile) setVistaMovil('sidebar')
+      }
+      if (isMobile) navMobile('backward', limpiar)
+      else limpiar()
     }
     recargarTodo()
   }
@@ -137,9 +159,11 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
             proyectoActivo={proyectoActivo}
             isMobile
             onSelect={slug => {
-              setProyectoActivo(slug)
-              setDocumentoActivo(null)
-              setVistaMovil('lista')
+              navMobile('forward', () => {
+                setProyectoActivo(slug)
+                setDocumentoActivo(null)
+                setVistaMovil('lista')
+              })
             }}
             onScan={escanear}
             onBuscar={() => setModal('buscar')}
@@ -152,14 +176,14 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
           <ListaDocumentos
             {...sharedListaProps}
             isMobile
-            onBack={() => setVistaMovil('sidebar')}
+            onBack={() => navMobile('backward', () => setVistaMovil('sidebar'))}
           />
         )}
         {vistaMovil === 'reader' && documentoActivo && (
           <Reader
             key={`${documentoActivo.id}-${recarga}`}
             documento={documentoActivo}
-            onClose={() => { setDocumentoActivo(null); setVistaMovil('lista') }}
+            onClose={() => navMobile('backward', () => { setDocumentoActivo(null); setVistaMovil('lista') })}
             onEstadoChange={handleEstadoChange}
           />
         )}

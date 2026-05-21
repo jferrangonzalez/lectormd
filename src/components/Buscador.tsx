@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { Documento, ResultadoBusqueda } from '../types'
 import { useTheme } from '../context/ThemeContext'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useDialog } from '../hooks/useDialog'
 
 interface Props {
   onSelect: (doc: Documento) => void
@@ -17,6 +18,7 @@ export function Buscador({ onSelect, onClose }: Props) {
   const [buscando, setBuscando] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dialogRef = useDialog(onClose)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -51,17 +53,14 @@ export function Buscador({ onSelect, onClose }: Props) {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.6)',
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'center',
-      paddingTop: isMobile ? 20 : 80,
-      zIndex: 100,
-    }}
-      onClick={onClose}
+    <dialog
+      ref={dialogRef}
+      closedby="any"
+      aria-label="Buscar en documentos"
+      style={{
+        marginTop: isMobile ? 20 : 80,
+        marginInline: 'auto',
+      }}
     >
       <div
         style={{
@@ -70,13 +69,13 @@ export function Buscador({ onSelect, onClose }: Props) {
           borderRadius: 12,
           width: 640,
           maxWidth: '90vw',
-          maxHeight: '70vh',
+          maxHeight: '70dvh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+          color: t.text,
         }}
-        onClick={e => e.stopPropagation()}
       >
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ color: t.textMuted, fontSize: 16 }}>🔍</span>
@@ -97,7 +96,7 @@ export function Buscador({ onSelect, onClose }: Props) {
           {buscando && <span style={{ color: t.textMuted, fontSize: 12 }}>...</span>}
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {resultados.length === 0 && q.length >= 2 && !buscando && (
             <div style={{ padding: 24, color: t.textMuted, textAlign: 'center', fontSize: 13 }}>
               Sin resultados para "{q}"
@@ -127,6 +126,6 @@ export function Buscador({ onSelect, onClose }: Props) {
           ))}
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }
