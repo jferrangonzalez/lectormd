@@ -21,6 +21,7 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
   const [marcadores, setMarcadores] = useState<Marcador[]>([])
   const [seleccion, setSeleccion] = useState<string | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const autoLeyendoLanzado = useRef<number | null>(null)
 
   const btn: React.CSSProperties = {
     background: t.btnBg,
@@ -37,7 +38,10 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
     setEstado(documento.estado)
     api.marcadores(documento.id).then(setMarcadores)
 
-    if (documento.estado === 'pendiente') {
+    // Guard contra loop: el padre cambia la `key` en recarga → remount → useEffect re-dispara
+    // con documento.estado todavía 'pendiente'. Garantizamos un único disparo por documento.id.
+    if (documento.estado === 'pendiente' && autoLeyendoLanzado.current !== documento.id) {
+      autoLeyendoLanzado.current = documento.id
       api.setEstado(documento.id, 'leyendo').then(() => {
         setEstado('leyendo')
         onEstadoChange()
@@ -74,6 +78,7 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
   return (
     <div style={{
       flex: 1,
+      minHeight: 0,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -114,7 +119,7 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
         <EstadoBadge estado={estado} onClick={ciclarEstado} />
       </div>
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
         {/* Contenido */}
         <div
           ref={contentRef}
@@ -122,7 +127,10 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
           onTouchEnd={handleSeleccion}
           style={{
             flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
             padding: isMobile ? '16px' : '32px 48px',
             color: t.text,
             fontSize,

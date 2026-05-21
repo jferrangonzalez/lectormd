@@ -5,8 +5,11 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  height: 100%;
+  /* dvh sigue al viewport visible en móvil (cuando barra URL aparece/desaparece).
+     100% se queda corto y deja contenido fuera de pantalla en iOS Safari/Chrome Android. */
+  height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #11111b;
   color: #cdd6f4;

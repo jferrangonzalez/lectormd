@@ -121,11 +121,14 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        height: '100dvh',
+        minHeight: 0,
         overflow: 'hidden',
         background: t.bg,
         color: t.text,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {vistaMovil === 'sidebar' && (
           <Sidebar
@@ -168,7 +171,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
   return (
     <div style={{
       display: 'flex',
-      height: '100vh',
+      height: '100dvh',
       overflow: 'hidden',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       background: t.bg,
@@ -187,7 +190,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
       />
 
       {!documentoActivo ? (
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
           {proyectoActivo ? (
             <>
               <ListaDocumentos {...sharedListaProps} />
