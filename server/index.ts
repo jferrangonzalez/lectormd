@@ -63,22 +63,27 @@ app.use('*', async (c, next) => {
 app.all('*', async (c) => {
   const method = c.req.method
 
-  let params: Record<string, unknown>
-  let action: string
+  // Merge: query string + body. Body gana si hay clash.
+  // Permite `?a=upload` con payload grande en JSON body (evita 414 Request-URI Too Large).
+  const query = c.req.query() as Record<string, unknown>
+  let body: Record<string, unknown> = {}
 
   if (method === 'POST') {
-    try {
-      params = (await c.req.json()) as Record<string, unknown>
-    } catch {
-      return c.json({ ok: false, error: 'Body JSON inválido' }, 400)
+    const raw = await c.req.text()
+    if (raw.length > 0) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          body = parsed as Record<string, unknown>
+        }
+      } catch {
+        return c.json({ ok: false, error: 'Body JSON inválido' }, 400)
+      }
     }
-    action = String(params.a ?? '')
-  } else {
-    // GET, HEAD, etc.
-    const query = c.req.query()
-    params = query as Record<string, unknown>
-    action = String(query.a ?? '')
   }
+
+  const params: Record<string, unknown> = { ...query, ...body }
+  const action = String(params.a ?? '')
 
   // Dispatch — las acciones lanzan Error en caso de falla
   try {
@@ -150,7 +155,7 @@ app.all('*', async (c) => {
 })
 
 // ── Arranque ──────────────────────────────────────────────────────────────────
-const PORT = 8080
+const PORT = Number(process.env.PORT) || 8080
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`[lectormd] server → http://localhost:${info.port}`)

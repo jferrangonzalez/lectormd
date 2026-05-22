@@ -1,8 +1,0 @@
-# Pasar el header Authorization a PHP (Apache lo filtra por defecto)
-RewriteEngine On
-RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization},L]
-
-# Bloquear acceso directo a archivos PHP excepto index
-<FilesMatch "^(?!index\.php$).*\.php$">
-    Require all denied
-</FilesMatch>
