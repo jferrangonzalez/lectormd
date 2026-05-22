@@ -28,7 +28,11 @@ interface DocumentoRow {
   proyecto_nombre: string
   proyecto_id?: number
   contenido?: string
+  scroll_anchor?: string | null
 }
+
+type MarcadorColor = 'yellow' | 'green' | 'blue' | 'pink'
+const COLORES: readonly MarcadorColor[] = ['yellow', 'green', 'blue', 'pink']
 
 interface MarcadorRow {
   id: number
@@ -36,6 +40,7 @@ interface MarcadorRow {
   fragmento: string
   comentario: string | null
   posicion: number
+  color: MarcadorColor
   created_at: string
 }
 
@@ -175,14 +180,47 @@ export function actionMarcadorAdd(
   const fragmento = (params.fragmento as string | undefined) ?? ''
   const comentario = (params.comentario as string | undefined) ?? null
   const posicion = Number(params.posicion) || 0
+  const colorRaw = (params.color as string | undefined) ?? 'yellow'
+  const color = (COLORES as readonly string[]).includes(colorRaw)
+    ? (colorRaw as MarcadorColor)
+    : 'yellow'
 
   if (!fragmento) throw new Error('Fragmento vacío')
 
   const result = db.prepare(
-    'INSERT INTO marcadores (documento_id, fragmento, comentario, posicion) VALUES (?, ?, ?, ?)'
-  ).run(docId, fragmento, comentario, posicion)
+    'INSERT INTO marcadores (documento_id, fragmento, comentario, posicion, color) VALUES (?, ?, ?, ?, ?)'
+  ).run(docId, fragmento, comentario, posicion, color)
 
   return { id: Number(result.lastInsertRowid) }
+}
+
+export function actionMarcadorUpdate(params: Record<string, unknown>): { id: number } {
+  const db = getDb()
+  const id = Number(params.id) || 0
+  if (!id) throw new Error('id requerido')
+
+  const sets: string[] = []
+  const args: unknown[] = []
+
+  if (typeof params.color === 'string') {
+    if (!(COLORES as readonly string[]).includes(params.color)) {
+      throw new Error('Color inválido')
+    }
+    sets.push('color = ?')
+    args.push(params.color)
+  }
+  if (typeof params.comentario === 'string') {
+    sets.push('comentario = ?')
+    args.push(params.comentario)
+  } else if (params.comentario === null) {
+    sets.push('comentario = NULL')
+  }
+
+  if (sets.length === 0) throw new Error('Sin campos a actualizar')
+
+  args.push(id)
+  db.prepare(`UPDATE marcadores SET ${sets.join(', ')} WHERE id = ?`).run(...args)
+  return { id }
 }
 
 export function actionMarcadorDel(params: Record<string, string>): { deleted: number } {
@@ -190,6 +228,100 @@ export function actionMarcadorDel(params: Record<string, string>): { deleted: nu
   const id = Number(params.id) || 0
   db.prepare('DELETE FROM marcadores WHERE id = ?').run(id)
   return { deleted: id }
+}
+
+export function actionScrollSave(params: Record<string, unknown>): { id: number } {
+  const db = getDb()
+  const id = Number(params.id) || 0
+  const anchor = (params.anchor as string | undefined) ?? ''
+  if (!id) throw new Error('id requerido')
+
+  db.prepare('UPDATE documentos SET scroll_anchor = ? WHERE id = ?')
+    .run(anchor || null, id)
+  return { id }
+}
+
+export function actionMarcadoresExport(
+  params: Record<string, unknown>
+): { filename: string; markdown: string } {
+  const db = getDb()
+  const docId = params.documento_id ? Number(params.documento_id) : null
+  const proyectoSlug = (params.proyecto_slug as string | undefined) ?? null
+
+  let rows: Array<MarcadorRow & {
+    doc_nombre: string
+    doc_ruta: string
+    proyecto_slug: string
+    proyecto_nombre: string
+  }>
+
+  if (docId) {
+    rows = db.prepare(`
+      SELECT m.*, d.nombre AS doc_nombre, d.ruta AS doc_ruta,
+             p.slug AS proyecto_slug, p.nombre AS proyecto_nombre
+      FROM marcadores m
+      JOIN documentos d ON d.id = m.documento_id
+      JOIN proyectos p ON p.id = d.proyecto_id
+      WHERE m.documento_id = ?
+      ORDER BY m.created_at
+    `).all(docId) as typeof rows
+  } else if (proyectoSlug) {
+    rows = db.prepare(`
+      SELECT m.*, d.nombre AS doc_nombre, d.ruta AS doc_ruta,
+             p.slug AS proyecto_slug, p.nombre AS proyecto_nombre
+      FROM marcadores m
+      JOIN documentos d ON d.id = m.documento_id
+      JOIN proyectos p ON p.id = d.proyecto_id
+      WHERE p.slug = ?
+      ORDER BY d.orden, m.created_at
+    `).all(proyectoSlug) as typeof rows
+  } else {
+    throw new Error('Se requiere documento_id o proyecto_slug')
+  }
+
+  if (rows.length === 0) {
+    return { filename: 'subrayados.md', markdown: '_(Sin subrayados)_\n' }
+  }
+
+  // Agrupar por documento (mantiene orden de la query)
+  const byDoc = new Map<number, typeof rows>()
+  for (const r of rows) {
+    if (!byDoc.has(r.documento_id)) byDoc.set(r.documento_id, [])
+    byDoc.get(r.documento_id)!.push(r)
+  }
+
+  const titulo = docId
+    ? `Subrayados — ${rows[0].doc_nombre}`
+    : `Subrayados — ${rows[0].proyecto_nombre}`
+  const filename = (docId
+    ? `subrayados-${rows[0].doc_ruta.replace(/[\\/]/g, '__').replace(/\.md$/, '')}`
+    : `subrayados-${proyectoSlug}`) + '.md'
+
+  let md = `# ${titulo}\n\n`
+  md += `_Exportado: ${new Date().toISOString().slice(0, 10)}_\n\n`
+
+  for (const [, items] of byDoc) {
+    if (!docId) md += `## ${items[0].doc_nombre}\n\n`
+    for (const m of items) {
+      const tag = colorEmoji(m.color)
+      md += `> ${tag} ${m.fragmento.trim().replace(/\n+/g, ' ')}\n`
+      if (m.comentario && m.comentario.trim()) {
+        md += `>\n> _${m.comentario.trim()}_\n`
+      }
+      md += '\n'
+    }
+  }
+
+  return { filename, markdown: md }
+}
+
+function colorEmoji(c: MarcadorColor): string {
+  switch (c) {
+    case 'yellow': return '🟡'
+    case 'green':  return '🟢'
+    case 'blue':   return '🔵'
+    case 'pink':   return '🔴'
+  }
 }
 
 export function actionMarcadoresAll(): MarcadorAllRow[] {

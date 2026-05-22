@@ -4,6 +4,7 @@ import type {
   DocumentoConContenido,
   Estado,
   Marcador,
+  MarcadorColor,
   Proyecto,
   ResultadoBusqueda,
 } from '../types'
@@ -65,11 +66,36 @@ export const api = {
 
   todosLosMarcadores: () => req<Marcador[]>({ a: 'marcadores_all' }),
 
-  addMarcador: (documento_id: number, fragmento: string, posicion: number, comentario?: string) =>
-    post<{ id: number }>({ a: 'marcador_add', documento_id, fragmento, posicion, ...(comentario ? { comentario } : {}) }),
+  addMarcador: (
+    documento_id: number,
+    fragmento: string,
+    posicion: number,
+    color: MarcadorColor = 'yellow',
+    comentario?: string,
+  ) =>
+    post<{ id: number }>({
+      a: 'marcador_add',
+      documento_id,
+      fragmento,
+      posicion,
+      color,
+      ...(comentario ? { comentario } : {}),
+    }),
+
+  updateMarcador: (
+    id: number,
+    patch: { color?: MarcadorColor; comentario?: string | null },
+  ) =>
+    post<{ id: number }>({ a: 'marcador_update', id, ...patch }),
 
   delMarcador: (id: number) =>
     post<{ deleted: number }>({ a: 'marcador_del', id }),
+
+  scrollSave: (id: number, anchor: string) =>
+    post<{ id: number }>({ a: 'scroll_save', id, anchor }),
+
+  exportMarcadores: (target: { documento_id: number } | { proyecto_slug: string }) =>
+    post<{ filename: string; markdown: string }>({ a: 'marcadores_export', ...target }),
 
   scan: () => req<unknown>({ a: 'scan' }),
 

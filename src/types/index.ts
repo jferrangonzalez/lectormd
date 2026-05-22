@@ -22,7 +22,11 @@ export interface Documento {
 
 export interface DocumentoConContenido extends Documento {
   contenido: string
+  scroll_anchor?: string | null
 }
+
+export type MarcadorColor = 'yellow' | 'green' | 'blue' | 'pink'
+export const COLORES_MARCADOR: readonly MarcadorColor[] = ['yellow', 'green', 'blue', 'pink']
 
 export interface Marcador {
   id: number
@@ -30,6 +34,7 @@ export interface Marcador {
   fragmento: string
   comentario: string | null
   posicion: number
+  color: MarcadorColor
   created_at: string
   doc_nombre?: string
   doc_ruta?: string

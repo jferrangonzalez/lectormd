@@ -53,10 +53,12 @@ function migrate(db: Database.Database): void {
       );
   `)
 
-  // Migración incremental: agregar columna orden si no existe
-  try {
-    db.exec('ALTER TABLE documentos ADD COLUMN orden INTEGER NOT NULL DEFAULT 0')
-  } catch {
-    // columna ya existe, ignorar
+  // Migraciones incrementales: cada bloque ignora "duplicate column" cuando ya existe
+  for (const stmt of [
+    'ALTER TABLE documentos ADD COLUMN orden INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE documentos ADD COLUMN scroll_anchor TEXT",
+    "ALTER TABLE marcadores ADD COLUMN color TEXT NOT NULL DEFAULT 'yellow' CHECK(color IN ('yellow','green','blue','pink'))",
+  ]) {
+    try { db.exec(stmt) } catch { /* columna ya existe */ }
   }
 }

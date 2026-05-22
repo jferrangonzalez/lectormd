@@ -11,14 +11,17 @@ import {
   actionBuscar,
   actionMarcadores,
   actionMarcadorAdd,
+  actionMarcadorUpdate,
   actionMarcadorDel,
   actionMarcadoresAll,
+  actionMarcadoresExport,
   actionProyectoRename,
   actionProyectoDel,
   actionProyectoCrear,
   actionMover,
   actionDocumentoDel,
   actionOrdenSwap,
+  actionScrollSave,
   actionUpload,
 } from './api.js'
 
@@ -116,11 +119,20 @@ app.all('*', async (c) => {
       case 'marcador_add':
         data = actionMarcadorAdd(params)
         break
+      case 'marcador_update':
+        data = actionMarcadorUpdate(params)
+        break
       case 'marcador_del':
         data = actionMarcadorDel(strParams)
         break
       case 'marcadores_all':
         data = actionMarcadoresAll()
+        break
+      case 'marcadores_export':
+        data = actionMarcadoresExport(params)
+        break
+      case 'scroll_save':
+        data = actionScrollSave(params)
         break
       case 'proyecto_rename':
         data = actionProyectoRename(strParams)
