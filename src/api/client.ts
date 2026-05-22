@@ -94,6 +94,9 @@ export const api = {
   scrollSave: (id: number, anchor: string) =>
     post<{ id: number }>({ a: 'scroll_save', id, anchor }),
 
+  scrollGet: (id: number) =>
+    req<{ anchor: string | null }>({ a: 'scroll_get', id }),
+
   exportMarcadores: (target: { documento_id: number } | { proyecto_slug: string }) =>
     post<{ filename: string; markdown: string }>({ a: 'marcadores_export', ...target }),
 

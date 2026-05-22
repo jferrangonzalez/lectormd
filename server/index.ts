@@ -22,6 +22,7 @@ import {
   actionDocumentoDel,
   actionOrdenSwap,
   actionScrollSave,
+  actionScrollGet,
   actionUpload,
 } from './api.js'
 
@@ -133,6 +134,9 @@ app.all('*', async (c) => {
         break
       case 'scroll_save':
         data = actionScrollSave(params)
+        break
+      case 'scroll_get':
+        data = actionScrollGet(strParams)
         break
       case 'proyecto_rename':
         data = actionProyectoRename(strParams)

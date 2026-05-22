@@ -241,6 +241,15 @@ export function actionScrollSave(params: Record<string, unknown>): { id: number 
   return { id }
 }
 
+export function actionScrollGet(params: Record<string, string>): { anchor: string | null } {
+  const db = getDb()
+  const id = Number(params.id) || 0
+  if (!id) throw new Error('id requerido')
+  const row = db.prepare('SELECT scroll_anchor FROM documentos WHERE id = ?')
+    .get(id) as { scroll_anchor: string | null } | undefined
+  return { anchor: row?.scroll_anchor ?? null }
+}
+
 export function actionMarcadoresExport(
   params: Record<string, unknown>
 ): { filename: string; markdown: string } {

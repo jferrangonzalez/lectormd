@@ -101,33 +101,39 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
   }, [documento.id])
 
   // ── Restaurar scroll anchor tras el render + estabilización del lazy syntax-highlighter ─
+  // Fetch fresco desde el server: el prop `documento.scroll_anchor` puede estar estancado
+  // cuando el padre remonta el Reader sin re-fetchear el documento (caso típico:
+  // auto-leyendo dispara onEstadoChange → padre bumpea key → remount con prop viejo).
   useEffect(() => {
-    const anchor = documento.scroll_anchor
-    if (!anchor || !contentRef.current) return
+    let cancelled = false
 
-    const [slug, offsetRaw] = anchor.split(':')
-    const offset = Number(offsetRaw) || 0
+    api.scrollGet(documento.id).then(({ anchor }) => {
+      if (cancelled || !anchor || !contentRef.current) return
 
-    const tryRestore = () => {
-      const target = document.getElementById(`h-${slug}`)
-      if (!target || !contentRef.current) return false
-      const containerTop = contentRef.current.getBoundingClientRect().top
-      const headingTop = target.getBoundingClientRect().top
-      contentRef.current.scrollTop += (headingTop - containerTop) + offset
-      return true
-    }
+      const [slug, offsetRaw] = anchor.split(':')
+      const offset = Number(offsetRaw) || 0
 
-    // Esperar a que el DOM se estabilice (lazy load de syntax highlighter cambia heights)
-    let attempts = 0
-    const maxAttempts = 20
-    const interval = window.setInterval(() => {
-      attempts++
-      if (tryRestore() || attempts >= maxAttempts) {
-        window.clearInterval(interval)
+      const tryRestore = () => {
+        const target = document.getElementById(`h-${slug}`)
+        if (!target || !contentRef.current) return false
+        const containerTop = contentRef.current.getBoundingClientRect().top
+        const headingTop = target.getBoundingClientRect().top
+        contentRef.current.scrollTop += (headingTop - containerTop) + offset
+        return true
       }
-    }, 150)
 
-    return () => window.clearInterval(interval)
+      // Esperar a que el DOM se estabilice (lazy load de syntax highlighter cambia heights)
+      let attempts = 0
+      const maxAttempts = 20
+      const interval = window.setInterval(() => {
+        attempts++
+        if (cancelled || tryRestore() || attempts >= maxAttempts) {
+          window.clearInterval(interval)
+        }
+      }, 150)
+    }).catch(() => { /* sin scroll restaurado, no crítico */ })
+
+    return () => { cancelled = true }
   }, [documento.id])
 
   // ── Guardar scroll anchor con throttle de 1s ────────────────────────────────
