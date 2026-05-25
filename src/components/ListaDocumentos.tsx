@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Documento, Estado, Proyecto } from '../types'
 import { EstadoBadge } from './EstadoBadge'
 import { api } from '../api/client'
@@ -26,9 +26,17 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
   const { t } = useTheme()
   const [filtro, setFiltro] = useState<Estado | ''>('')
   const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const [modoOrden, setModoOrden] = useState<'recientes' | 'manual'>('recientes')
 
-  const filtrados = filtro ? documentos.filter(d => d.estado === filtro) : documentos
-  const puedeReordenar = filtro === ''
+  const filtrados = useMemo(() => {
+    const base = filtro ? documentos.filter(d => d.estado === filtro) : documentos
+    if (modoOrden === 'manual') return base  // el backend ya los devuelve por su 'orden' manual
+    // Recientes primero: por fecha de incorporación (created_at), id como desempate determinista.
+    return [...base].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id)
+  }, [documentos, filtro, modoOrden])
+
+  // El reordenamiento manual (↑/↓) solo tiene sentido cuando la lista se muestra en su orden manual.
+  const puedeReordenar = filtro === '' && modoOrden === 'manual'
 
   const ciclarEstado = async (doc: Documento) => {
     const orden: Estado[] = ['pendiente', 'leyendo', 'leido']
@@ -138,6 +146,26 @@ export function ListaDocumentos({ documentos, proyectos, loading, isMobile, onSe
             {e.label}
           </button>
         ))}
+
+        <button
+          onClick={() => setModoOrden(m => (m === 'recientes' ? 'manual' : 'recientes'))}
+          title={modoOrden === 'recientes'
+            ? 'Orden: más recientes primero — clic para orden manual'
+            : 'Orden manual — clic para más recientes primero'}
+          style={{
+            marginLeft: 'auto',
+            padding: isMobile ? '6px 12px' : '3px 10px',
+            borderRadius: 12,
+            border: `1px solid ${t.border}`,
+            fontSize: isMobile ? 13 : 11,
+            cursor: 'pointer',
+            background: t.btnBg,
+            color: t.btnText,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {modoOrden === 'recientes' ? '🕒 Recientes' : '↕ Manual'}
+        </button>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
