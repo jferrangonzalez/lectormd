@@ -101,9 +101,9 @@ export function Reader({ documento, onClose, onEstadoChange }: Props) {
   }, [documento.id])
 
   // ── Restaurar scroll anchor tras el render + estabilización del lazy syntax-highlighter ─
-  // Fetch fresco desde el server: el prop `documento.scroll_anchor` puede estar estancado
-  // cuando el padre remonta el Reader sin re-fetchear el documento (caso típico:
-  // auto-leyendo dispara onEstadoChange → padre bumpea key → remount con prop viejo).
+  // Se lee el anchor fresco del server en vez de confiar en el prop `documento.scroll_anchor`:
+  // ese prop se captura al abrir el documento y puede no reflejar la última posición persistida
+  // (p. ej. scroll guardado desde otra pestaña). El server es la fuente de verdad.
   useEffect(() => {
     let cancelled = false
 
