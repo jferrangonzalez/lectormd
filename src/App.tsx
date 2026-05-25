@@ -56,7 +56,6 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
   const [proyectoActivo, setProyectoActivo] = useState<string | null>(null)
   const [documentoActivo, setDocumentoActivo] = useState<DocumentoConContenido | null>(null)
   const [modal, setModal] = useState<Modal>(null)
-  const [recarga, setRecarga] = useState(0)
   const [recargaDocs, setRecargaDocs] = useState(0)
   const [vistaMovil, setVistaMovil] = useState<VistaMovil>('sidebar')
   const isMobile = useIsMobile()
@@ -81,7 +80,6 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
   }
 
   const handleEstadoChange = () => {
-    setRecarga(r => r + 1)
     recargarProyectos()
   }
 
@@ -181,7 +179,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
         )}
         {vistaMovil === 'reader' && documentoActivo && (
           <Reader
-            key={`${documentoActivo.id}-${recarga}`}
+            key={documentoActivo.id}
             documento={documentoActivo}
             onClose={() => navMobile('backward', () => { setDocumentoActivo(null); setVistaMovil('lista') })}
             onEstadoChange={handleEstadoChange}
@@ -235,7 +233,7 @@ function AppShell({ t }: { t: ReturnType<typeof useTheme>['t'] }) {
         </div>
       ) : (
         <Reader
-          key={`${documentoActivo.id}-${recarga}`}
+          key={documentoActivo.id}
           documento={documentoActivo}
           onClose={() => setDocumentoActivo(null)}
           onEstadoChange={handleEstadoChange}
